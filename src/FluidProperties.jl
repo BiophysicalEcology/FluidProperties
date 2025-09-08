@@ -6,7 +6,7 @@ end
 
 using Unitful, UnitfulMoles
 
-export vapour_pressure, wet_air, dry_air, get_pressure, get_λ_evap, water_prop
+export vapour_pressure, wet_air, dry_air, get_pressure, get_λ_evap
 
 include("fluid_properties.jl")
 
