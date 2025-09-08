@@ -1,6 +1,6 @@
 name = "FluidProperties"
 uuid = "d16f1b92-71d3-42f3-aafa-43e5bb0efda8"
-authors = ["Your Name <you@example.com>"]
+authors = ["m.kearney@unimelb.edu.au", "rafaelschouten@gmail.com"]
 version = "0.1.0"
 
 [deps]
