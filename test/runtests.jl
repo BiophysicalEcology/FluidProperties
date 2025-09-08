@@ -3,7 +3,9 @@ using FluidProperties
 using Test
 using Unitful
 
-Aqua.test_all(FluidProperties)
+@testset "Aqua.jl quality assurance" begin
+    Aqua.test_all(FluidProperties)
+end
 
 @testset "FluidProperties" begin
     elevation = 100.0u"m"
