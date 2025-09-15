@@ -44,7 +44,7 @@ function get_pressure(h::Quantity;
     M::Quantity = 0.0289644u"kg/mol"
 )
     R = Unitful.R
-    P_a = P_ref * (1 + (L_ref / T_ref) * h) ^ ((-g_0 * M) / (R * L_ref))#5.2553026003237262u"kg*m^2*J^-1*s^-2"#
+    P_a = P_ref * (1 + (L_ref / T_ref) * h) ^ ((-g_0 * M) / (R * L_ref)) #5.2553026003237262u"kg*m^2*J^-1*s^-2"#
 
     return P_a
 end
@@ -60,6 +60,7 @@ Calculates saturation vapour pressure (Pa) for a given air temperature.
 function vapour_pressure(T)
     T = ustrip(u"K", T) + 0.01 # triple point of water is 273.16
     if T <= 273.16
+        # TODO name these magic numbers
         logP_vap = -9.09718 * (273.16 / T - 1) + 
                     -3.56654 * log10(273.16 / T) + 
                     0.876793 * (1 - T / 273.16) + 
@@ -67,12 +68,13 @@ function vapour_pressure(T)
     else
         logP_vap = -7.90298 * (373.16 / T - 1) + 
                     5.02808 * log10(373.16 / T) +
-                    -1.3816E-07 * (10^(11.344 * (1 - T / 373.16)) - 1) + 
-                    8.1328E-03 * (10^(-3.49149 * (373.16 / T - 1)) - 1) + 
+                    -1.3816E-07 * (exp10(11.344 * (1 - T / 373.16)) - 1) + 
+                    8.1328E-03 * (exp10(-3.49149 * (373.16 / T - 1)) - 1) + 
                     log10(1013.246)
     end
 
-    return (10^logP_vap) * 100u"Pa"
+    # Note: exp10 is faster than 10^x
+    return exp10(logP_vap) * 100u"Pa"
 end
 
 """
@@ -117,7 +119,7 @@ If T_dew is known then set T_wetublb = 0 and rh = 0.
 # - `rh`: Relative humidity (%)
 
 """
-function wet_air(T_drybulb; 
+@inline function wet_air(T_drybulb; 
     T_wetbulb=T_drybulb, 
     rh=0, 
     T_dew=nothing, 
@@ -128,39 +130,41 @@ function wet_air(T_drybulb;
 )
     return wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2)
 end
-function wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2)
+@inline function wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2)
     c_p_H2O_vap = 1864.40u"J/K/kg"
     c_p_dry_air = 1004.84u"J/K/kg" # should be 1006?
     f_w = 1.0053 # (-) correction factor for the departure of the mixture of air and water vapour from ideal gas laws
     M_w = (1molH₂O |> u"kg") / 1u"mol" # molar mass of water
     M_a = (fO2*molO₂ + fCO2*molCO₂ + fN2*molN₂) / 1u"mol" # molar mass of air
     P_vap_sat = vapour_pressure(T_drybulb)
-    if T_dew !== nothing
-        P_vap = vapour_pressure(T_dew)
-        rh = (P_vap / P_vap_sat) * 100
-    else
-        if rh !== nothing
-            P_vap = P_vap_sat * rh / 100
-        else
+    if isnothing(T_dew)
+        if isnothing(rh)
             δ_bulb = T_drybulb - T_wetbulb
             δ_P_vap = (0.000660 * (1 + 0.00115 * ustrip(u"°C", T_wetbulb)) * ustrip(P) * ustrip(δ_bulb))u"Pa"
             P_vap = vapour_pressure(T_wetbulb) - δ_P_vap
             rh = (P_vap / P_vap_sat) * 100
+        else
+            P_vap = P_vap_sat * rh * 0.01
         end
+    else
+        P_vap = vapour_pressure(T_dew)
+        # TODO what are these * and / 100
+        # And why dont we check isnothing(rh) here as well?
+        rh = (P_vap / P_vap_sat) * 100
     end
     r_w = ((M_w / M_a) * f_w * P_vap) / (P_atmos - f_w * P_vap)
-    ρ_vap = P_vap * M_w / (0.998 * Unitful.R * T_drybulb) # 0.998 a correction factor?
+    ρ_vap = P_vap * M_w / (0.998 * Unitful.R * T_drybulb) # TODO 0.998 a correction factor?
     ρ_vap = uconvert(u"kg/m^3", ρ_vap) # simplify units
-    T_vir = T_drybulb * ((1.0 + r_w / (M_w / M_a)) / (1 + r_w))
+    T_vir = T_drybulb * ((1 + r_w / (M_w / M_a)) / (1 + r_w))
     T_vinc = T_vir - T_drybulb
-    ρ_air = (M_a / Unitful.R) * P_atmos / (0.999 * T_vir) # 0.999 a correction factor?
+    ρ_air = (M_a / Unitful.R) * P_atmos / (0.999 * T_vir) # TODO 0.999 a correction factor?
     ρ_air = uconvert(u"kg/m^3", ρ_air) # simplify units
     c_p = (c_p_dry_air + (r_w * c_p_H2O_vap)) / (1 + r_w)
     ψ = if min(rh) <= 0
         -999.0u"Pa"
     else
-        (4.615e+5 * ustrip(u"K", T_drybulb) * log(rh / 100))u"Pa"
-    end::typeof(1.0u"Pa")
+        (4.615e+5 * ustrip(u"K", T_drybulb) * log(rh * 0.01))u"Pa"
+    end
 
     return (; P_vap, P_vap_sat, ρ_vap, r_w, T_vinc, ρ_air, c_p, ψ, rh)
 end
@@ -170,9 +174,9 @@ end
     dry_air(T_drybulb, P_atmos, elevation, fO2, fCO2, fN2)
 
 """
-dry_air(T_drybulb; P_atmos=nothing, elevation=0m, fO2=0.2095, fCO2=0.0004, fN2=0.79) = 
+@inline dry_air(T_drybulb; P_atmos=nothing, elevation=0m, fO2=0.2095, fCO2=0.0004, fN2=0.79) = 
     dry_air(T_drybulb, P_atmos, elevation, fO2, fCO2, fN2)
-function dry_air(T_drybulb, P_atmos, elevation, fO2, fCO2, fN2)
+@inline function dry_air(T_drybulb, P_atmos, elevation, fO2, fCO2, fN2)
     σ = uconvert(u"W/m^2/K^4", Unitful.σ) # Stefan-Boltzmann constant, W/m^2/K^4, extract σ when calling Unitful when units issue is fixed in Unitful
     M_a = ((fO2*molO₂ + fCO2*molCO₂ + fN2*molN₂) |> u"kg") / 1u"mol" # molar mass of air
     if isnothing(P_atmos)
