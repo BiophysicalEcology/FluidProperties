@@ -120,9 +120,9 @@ If T_dew is known then set T_wetublb = 0 and rh = 0.
 
 """
 @inline function wet_air(T_drybulb; 
-    T_wetbulb=T_drybulb, 
-    rh=0, 
+    T_wetbulb=nothing, 
     T_dew=nothing, 
+    rh=0, 
     P_atmos=101325u"Pa",
     fO2=0.2095,
     fCO2=0.0004,
@@ -139,10 +139,15 @@ end
     P_vap_sat = vapour_pressure(T_drybulb)
     if isnothing(T_dew)
         if isnothing(rh)
-            δ_bulb = T_drybulb - T_wetbulb
-            δ_P_vap = (0.000660 * (1 + 0.00115 * ustrip(u"°C", T_wetbulb)) * ustrip(P) * ustrip(δ_bulb))u"Pa"
-            P_vap = vapour_pressure(T_wetbulb) - δ_P_vap
-            rh = (P_vap / P_vap_sat) * 100
+            if isnothing(T_wetbulb) # We assume T_wetbulb == T_drybulb
+                P_vap = P_vap_sat
+                rh = 100.0
+            else
+                δ_bulb = T_drybulb - T_wetbulb
+                δ_P_vap = (0.000660 * (1 + 0.00115 * ustrip(u"°C", T_wetbulb)) * ustrip(P) * ustrip(δ_bulb))u"Pa"
+                P_vap = vapour_pressure(T_wetbulb) - δ_P_vap
+                rh = (P_vap / P_vap_sat) * 100
+            end
         else
             P_vap = P_vap_sat * rh * 0.01
         end
