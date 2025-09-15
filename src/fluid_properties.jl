@@ -122,7 +122,7 @@ If T_dew is known then set T_wetublb = 0 and rh = 0.
 @inline function wet_air(T_drybulb; 
     T_wetbulb=nothing, 
     T_dew=nothing, 
-    rh=0, 
+    rh=nothing, 
     P_atmos=101325u"Pa",
     fO2=0.2095,
     fCO2=0.0004,
