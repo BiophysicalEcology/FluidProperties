@@ -37,14 +37,14 @@ using Unitful
 P = get_pressure(1500u"m")
 """
 function get_pressure(h::Quantity;
-    P_ref::Quantity = 101325u"Pa",
+    #P_ref::Quantity = atm,
     L_ref::Quantity = -0.0065u"K/m",
     T_ref::Quantity = 288.0u"K",
-    g_0::Quantity = 9.80665u"m/s^2",
+    #g_0::Quantity = g_n,
     M::Quantity = 0.0289644u"kg/mol"
 )
-    R = Unitful.R
-    P_a = P_ref * (1 + (L_ref / T_ref) * h) ^ ((-g_0 * M) / (R * L_ref)) #5.2553026003237262u"kg*m^2*J^-1*s^-2"#
+
+    P_a = atm * (1 + (L_ref / T_ref) * h) ^ ((-g_n * M) / (R * L_ref)) #5.2553026003237262u"kg*m^2*J^-1*s^-2"#
 
     return P_a
 end
