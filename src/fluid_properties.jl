@@ -95,17 +95,17 @@ If T_dew is known then set T_wetublb = 0 and rh = 0.
     fO2=0.2095,
     fCO2=0.0004,
     fN2=0.79,
-    vapor_pressure_formula=GoffGatch(),
+    vapor_pressure_equation=GoffGratch(),
 )
-    return wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2; vapor_pressure_fulmula)
+    return wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2; vapor_pressure_equation)
 end
-@inline function wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2; vapor_pressure_formula)
+@inline function wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2; vapor_pressure_equation)
     c_p_H2O_vap = 1864.40u"J/K/kg"
     c_p_dry_air = 1004.84u"J/K/kg" # should be 1006?
     f_w = 1.0053 # (-) correction factor for the departure of the mixture of air and water vapour from ideal gas laws
     M_w = (1molH₂O |> u"kg") / 1u"mol" # molar mass of water
     M_a = (fO2*molO₂ + fCO2*molCO₂ + fN2*molN₂) / 1u"mol" # molar mass of air
-    P_vap_sat = vapor_pressure(vapor_pressure_formula, T_drybulb)
+    P_vap_sat = vapor_pressure(vapor_pressure_equation, T_drybulb)
     if isnothing(T_dew)
         if isnothing(rh)
             if isnothing(T_wetbulb) # We assume T_wetbulb == T_drybulb
@@ -114,14 +114,14 @@ end
             else
                 δ_bulb = T_drybulb - T_wetbulb
                 δ_P_vap = (0.000660 * (1 + 0.00115 * ustrip(u"°C", T_wetbulb)) * ustrip(P) * ustrip(δ_bulb))u"Pa"
-                P_vap = vapor_pressure(vapor_pressure_formula, T_wetbulb) - δ_P_vap
+                P_vap = vapor_pressure(vapor_pressure_equation, T_wetbulb) - δ_P_vap
                 rh = (P_vap / P_vap_sat) * 100
             end
         else
             P_vap = P_vap_sat * rh * 0.01
         end
     else
-        P_vap = vapor_pressure(vapor_pressure_formula, T_dew)
+        P_vap = vapor_pressure(vapor_pressure_equation, T_dew)
         # TODO what are these * and / 100
         # And why dont we check isnothing(rh) here as well?
         rh = (P_vap / P_vap_sat) * 100
