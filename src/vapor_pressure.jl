@@ -76,4 +76,4 @@ The `GoffGratch` formulation is used by default.
 """
 vapor_pressure(Tk) = vapor_pressure(Huang(), Tk)
 
-
+@deprecate vapour_pressure vapor_pressure
