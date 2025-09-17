@@ -4,7 +4,7 @@ using Unitful, UnitfulMoles
 
 using Unitful: ustrip, uconvert
 
-export vapour_pressure, wet_air, dry_air, get_pressure, get_λ_evap
+export vapor_pressure, wet_air, dry_air, get_pressure, get_λ_evap
 
 @compound H2O
 @compound O2
