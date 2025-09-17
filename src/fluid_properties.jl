@@ -49,18 +49,34 @@ function get_pressure(h::Quantity;
     return P_a
 end
 
-"""
-    vapour_pressure(T)
+abstract type VaporPressureEquation end
 
-Calculates saturation vapour pressure (Pa) for a given air temperature.
-
-# Arguments
-- `T`: air temperature in K.
 """
-function vapour_pressure(T)
+    GoffGratch <: VaporPressureEquation
+
+Tetens equations for [`vapor_pressure`](@ref).
+
+Low accuracy but very fast, with only a single `exp` call.
+"""
+struct Teten <: VaporPressureEquation end
+
+function vapor_pressure(::Teten, T)
+    Tc = ustrip(u"°C", T)
+    return 6.1078 * exp((17.269 * Tc) / (237.3 + Tc)) * 100u"Pa"
+end
+
+"""
+    GoffGratch <: VaporPressureEquation
+
+Widely used Goff-Gratch equations for [`vapor_pressure`](@ref).
+"""
+struct GoffGratch <: VaporPressureEquation end
+
+function vapor_pressure(::GoffGratch, T)
+    Tc = ustrip(u"°C", T)
     T = ustrip(u"K", T) + 0.01 # triple point of water is 273.16
     if T <= 273.16
-        # TODO name these magic numbers
+        # TODO name some of these magic numbers
         logP_vap = -9.09718 * (273.16 / T - 1) + 
                     -3.56654 * log10(273.16 / T) + 
                     0.876793 * (1 - T / 273.16) + 
@@ -72,10 +88,45 @@ function vapour_pressure(T)
                     8.1328E-03 * (exp10(-3.49149 * (373.16 / T - 1)) - 1) + 
                     log10(1013.246)
     end
-
     # Note: exp10 is faster than 10^x
-    return exp10(logP_vap) * 100u"Pa"
+    result = exp10(logP_vap) * 100u"Pa"
+
+    return  result
 end
+
+"""
+    Huang <: VaporPressureEquation
+
+Huang (2018) equations for [`vapor_pressure`](@ref).
+
+High accuracy from -100 to 100 °C and reasonable performance.
+"""
+struct Huang <: VaporPressureEquation end
+
+function vapor_pressure(::Huang, Tk)
+    t = ustrip(u"°C", Tk)
+    if t > 0.0
+        # Huang (2018), water over liquid surface
+        return exp((34.494 - 4924.99 / (t + 237.1)) / ((t + 105.0)^1.57)) * 100u"Pa"
+    else
+        # Huang (2018), water over ice surface
+        return exp((43.494 - 6545.8 / (t + 278.0)) / ((t + 868.0)^2)) * 100u"Pa"
+    end
+end
+
+"""
+    vapor_pressure(T)
+    vapor_pressure(formulation, T)
+
+Calculates saturation vapor pressure (Pa) for a given air temperature.
+
+# Arguments
+- `T`: air temperature in K.
+
+The `GoffGratch` formulation is used by default.
+"""
+vapor_pressure(Tk) = vapor_pressure(Huang(), Tk)
+
 
 """
     wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2)
@@ -83,7 +134,7 @@ end
 
 Calculates several properties of humid air as output variables below. The program
 is based on equations from List, R. J. 1971. Smithsonian Meteorological Tables. Smithsonian
-Institution Press. Washington, DC. wet_air must be used in conjunction with function vapour_pressure.
+Institution Press. Washington, DC. wet_air must be used in conjunction with function vapor_pressure.
 
 Input variables are shown below. The user must supply known values for T_drybulb and P (P at one standard
 atmosphere is 101 325 pascals). Values for the remaining variables are determined by whether the user has
@@ -108,7 +159,7 @@ If T_dew is known then set T_wetublb = 0 and rh = 0.
 - `fCO2`; fractional CO2 concentration in atmosphere, -
 - `fN2`; fractional N2 concentration in atmosphere, -
 # - `P_vap`: Vapour pressure (Pa)
-# - `P_vap_sat`: Saturation vapour pressure (Pa)
+# - `P_vap_sat`: Saturation vapor pressure (Pa)
 # - `ρ_vap`: Vapour density (kg m-3)
 # - `r_w Mixing`: ratio (kg kg-1)
 # - `T_vir`: Virtual temperature (K)
@@ -126,17 +177,18 @@ If T_dew is known then set T_wetublb = 0 and rh = 0.
     P_atmos=101325u"Pa",
     fO2=0.2095,
     fCO2=0.0004,
-    fN2=0.79
+    fN2=0.79,
+    vapor_pressure_formula=GoffGatch(),
 )
-    return wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2)
+    return wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2; vapor_pressure_fulmula)
 end
-@inline function wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2)
+@inline function wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2; vapor_pressure_formula)
     c_p_H2O_vap = 1864.40u"J/K/kg"
     c_p_dry_air = 1004.84u"J/K/kg" # should be 1006?
     f_w = 1.0053 # (-) correction factor for the departure of the mixture of air and water vapour from ideal gas laws
     M_w = (1molH₂O |> u"kg") / 1u"mol" # molar mass of water
     M_a = (fO2*molO₂ + fCO2*molCO₂ + fN2*molN₂) / 1u"mol" # molar mass of air
-    P_vap_sat = vapour_pressure(T_drybulb)
+    P_vap_sat = vapor_pressure(vapor_pressure_formula, T_drybulb)
     if isnothing(T_dew)
         if isnothing(rh)
             if isnothing(T_wetbulb) # We assume T_wetbulb == T_drybulb
@@ -145,14 +197,14 @@ end
             else
                 δ_bulb = T_drybulb - T_wetbulb
                 δ_P_vap = (0.000660 * (1 + 0.00115 * ustrip(u"°C", T_wetbulb)) * ustrip(P) * ustrip(δ_bulb))u"Pa"
-                P_vap = vapour_pressure(T_wetbulb) - δ_P_vap
+                P_vap = vapor_pressure(vapor_pressure_formula, T_wetbulb) - δ_P_vap
                 rh = (P_vap / P_vap_sat) * 100
             end
         else
             P_vap = P_vap_sat * rh * 0.01
         end
     else
-        P_vap = vapour_pressure(T_dew)
+        P_vap = vapor_pressure(vapor_pressure_formula, T_dew)
         # TODO what are these * and / 100
         # And why dont we check isnothing(rh) here as well?
         rh = (P_vap / P_vap_sat) * 100
