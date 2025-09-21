@@ -1,7 +1,3 @@
-@compound H2O
-@compound O2
-@compound CO2
-@compound N2
 """
     get_pressure(h::Quantity;
                  h_ref::Quantity = 0u"m",
@@ -50,40 +46,12 @@ function get_pressure(h::Quantity;
 end
 
 """
-    vapour_pressure(T)
-
-Calculates saturation vapour pressure (Pa) for a given air temperature.
-
-# Arguments
-- `T`: air temperature in K.
-"""
-function vapour_pressure(T)
-    T = ustrip(u"K", T) + 0.01 # triple point of water is 273.16
-    if T <= 273.16
-        # TODO name these magic numbers
-        logP_vap = -9.09718 * (273.16 / T - 1) + 
-                    -3.56654 * log10(273.16 / T) + 
-                    0.876793 * (1 - T / 273.16) + 
-                    log10(6.1071)
-    else
-        logP_vap = -7.90298 * (373.16 / T - 1) + 
-                    5.02808 * log10(373.16 / T) +
-                    -1.3816E-07 * (exp10(11.344 * (1 - T / 373.16)) - 1) + 
-                    8.1328E-03 * (exp10(-3.49149 * (373.16 / T - 1)) - 1) + 
-                    log10(1013.246)
-    end
-
-    # Note: exp10 is faster than 10^x
-    return exp10(logP_vap) * 100u"Pa"
-end
-
-"""
     wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2)
     wet_air(T_drybulb; kw...)
 
 Calculates several properties of humid air as output variables below. The program
 is based on equations from List, R. J. 1971. Smithsonian Meteorological Tables. Smithsonian
-Institution Press. Washington, DC. wet_air must be used in conjunction with function vapour_pressure.
+Institution Press. Washington, DC. wet_air must be used in conjunction with function vapor_pressure.
 
 Input variables are shown below. The user must supply known values for T_drybulb and P (P at one standard
 atmosphere is 101 325 pascals). Values for the remaining variables are determined by whether the user has
@@ -108,7 +76,7 @@ If T_dew is known then set T_wetublb = 0 and rh = 0.
 - `fCO2`; fractional CO2 concentration in atmosphere, -
 - `fN2`; fractional N2 concentration in atmosphere, -
 # - `P_vap`: Vapour pressure (Pa)
-# - `P_vap_sat`: Saturation vapour pressure (Pa)
+# - `P_vap_sat`: Saturation vapor pressure (Pa)
 # - `ρ_vap`: Vapour density (kg m-3)
 # - `r_w Mixing`: ratio (kg kg-1)
 # - `T_vir`: Virtual temperature (K)
@@ -126,17 +94,18 @@ If T_dew is known then set T_wetublb = 0 and rh = 0.
     P_atmos=101325u"Pa",
     fO2=0.2095,
     fCO2=0.0004,
-    fN2=0.79
+    fN2=0.79,
+    vapor_pressure_equation=GoffGratch(),
 )
-    return wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2)
+    return wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2; vapor_pressure_equation)
 end
-@inline function wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2)
+@inline function wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2; vapor_pressure_equation)
     c_p_H2O_vap = 1864.40u"J/K/kg"
     c_p_dry_air = 1004.84u"J/K/kg" # should be 1006?
     f_w = 1.0053 # (-) correction factor for the departure of the mixture of air and water vapour from ideal gas laws
     M_w = (1molH₂O |> u"kg") / 1u"mol" # molar mass of water
     M_a = (fO2*molO₂ + fCO2*molCO₂ + fN2*molN₂) / 1u"mol" # molar mass of air
-    P_vap_sat = vapour_pressure(T_drybulb)
+    P_vap_sat = vapor_pressure(vapor_pressure_equation, T_drybulb)
     if isnothing(T_dew)
         if isnothing(rh)
             if isnothing(T_wetbulb) # We assume T_wetbulb == T_drybulb
@@ -145,14 +114,14 @@ end
             else
                 δ_bulb = T_drybulb - T_wetbulb
                 δ_P_vap = (0.000660 * (1 + 0.00115 * ustrip(u"°C", T_wetbulb)) * ustrip(P) * ustrip(δ_bulb))u"Pa"
-                P_vap = vapour_pressure(T_wetbulb) - δ_P_vap
+                P_vap = vapor_pressure(vapor_pressure_equation, T_wetbulb) - δ_P_vap
                 rh = (P_vap / P_vap_sat) * 100
             end
         else
             P_vap = P_vap_sat * rh * 0.01
         end
     else
-        P_vap = vapour_pressure(T_dew)
+        P_vap = vapor_pressure(vapor_pressure_equation, T_dew)
         # TODO what are these * and / 100
         # And why dont we check isnothing(rh) here as well?
         rh = (P_vap / P_vap_sat) * 100
