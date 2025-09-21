@@ -11,7 +11,8 @@ struct Teten <: VaporPressureEquation end
 
 function vapor_pressure(::Teten, T)
     Tc = ustrip(u"°C", T)
-    return 6.1078 * exp((17.269 * Tc) / (237.3 + Tc)) * 100u"Pa"
+    P_triple = 6.1071    # hPa, vapor pressure at triple point
+    return P_triple * exp((17.269 * Tc) / (237.3 + Tc)) * 100u"Pa"
 end
 
 """
@@ -24,23 +25,31 @@ struct GoffGratch <: VaporPressureEquation end
 function vapor_pressure(::GoffGratch, T)
     Tc = ustrip(u"°C", T)
     T = ustrip(u"K", T) + 0.01 # triple point of water is 273.16
-    if T <= 273.16
-        # TODO name some of these magic numbers
-        logP_vap = -9.09718 * (273.16 / T - 1) + 
-                    -3.56654 * log10(273.16 / T) + 
-                    0.876793 * (1 - T / 273.16) + 
-                    log10(6.1071)
+
+    # Physical reference points
+    T_triple = 273.16    # K, triple point of water
+    T_boiling = 373.16   # K, normal boiling point of water
+    P_triple = 6.1071    # hPa, vapor pressure at triple point
+    P_boiling = 1013.246 # hPa, vapor pressure at boiling point
+
+    if T < T_triple
+        # --- Goff–Gratch saturation over ice ---
+        logP_vap = -9.09718 * (T_triple / T - 1) +
+                   -3.56654 * log10(T_triple / T) +
+                   0.876793 * (1 - T / T_triple) +
+                   log10(P_triple)
     else
-        logP_vap = -7.90298 * (373.16 / T - 1) + 
-                    5.02808 * log10(373.16 / T) +
-                    -1.3816E-07 * (exp10(11.344 * (1 - T / 373.16)) - 1) + 
-                    8.1328E-03 * (exp10(-3.49149 * (373.16 / T - 1)) - 1) + 
-                    log10(1013.246)
+        # --- Goff–Gratch saturation over liquid water ---
+        logP_vap = -7.90298 * (T_boiling / T - 1) +
+                   5.02808 * log10(T_boiling / T) +
+                   -1.3816e-07 * (exp10(11.344 * (1 - T / T_boiling)) - 1) +
+                   8.1328e-03 * (exp10(-3.49149 * (T_boiling / T - 1)) - 1) +
+                   log10(P_boiling)
     end
     # Note: exp10 is faster than 10^x
     result = exp10(logP_vap) * 100u"Pa"
 
-    return  result
+    return result
 end
 
 """
@@ -74,6 +83,6 @@ Calculates saturation vapor pressure (Pa) for a given air temperature.
 
 The `GoffGratch` formulation is used by default.
 """
-vapor_pressure(Tk) = vapor_pressure(Huang(), Tk)
+vapor_pressure(Tk) = vapor_pressure(GoffGratch(), Tk)
 
 @deprecate vapour_pressure vapor_pressure
