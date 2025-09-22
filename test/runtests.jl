@@ -1,4 +1,4 @@
-using Aqua, FluidProperties, Test, SafeTestsets, Unitful, UnitfulMoles
+using Aqua, DataFrames, CSV, FluidProperties, Test, SafeTestsets, Unitful, UnitfulMoles
 
 @testset "Aqua.jl quality assurance" begin
     Aqua.test_all(FluidProperties)
