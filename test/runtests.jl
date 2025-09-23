@@ -9,4 +9,4 @@ end
     @test atmospheric_pressure(elevation) == 100128.83927387102u"Pa"
 end
 
-@safetestset "Test against NicheMapR outputs" begin include("nichemapr_test.jl") end
+@safetestset "Test against NicheMapR outputs" begin include("nichemapr_tests.jl") end
