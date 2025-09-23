@@ -6,7 +6,8 @@ using PhysicalConstants.CODATA2022: g_n, σ, atm, R
 
 using Unitful: ustrip, uconvert
 
-export vapor_pressure, wet_air, dry_air, get_pressure, get_λ_evap
+export atmospheric_pressure, dry_air_properties, enthalpy_of_vaporisation
+export vapor_pressure, water_properties, wet_air_properties
 
 @compound H2O
 @compound O2

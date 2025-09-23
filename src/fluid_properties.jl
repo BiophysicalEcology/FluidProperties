@@ -1,5 +1,5 @@
 """
-    get_pressure(h::Quantity;
+    atmospheric_pressure(h::Quantity;
                  h_ref::Quantity = 0u"m",
                  P_ref::Quantity = 101325u"Pa",
                  L_ref::Quantity = -0.0065u"K/m",
@@ -30,9 +30,9 @@ assuming a constant temperature lapse rate (standard tropospheric approximation)
 ```julia
 using Unitful
 
-P = get_pressure(1500u"m")
+P = atmospheric_pressure(1500u"m")
 """
-function get_pressure(h::Quantity;
+function atmospheric_pressure(h::Quantity;
     #P_ref::Quantity = atm,
     L_ref::Quantity = -0.0065u"K/m",
     T_ref::Quantity = 288.0u"K",
@@ -46,12 +46,12 @@ function get_pressure(h::Quantity;
 end
 
 """
-    wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2)
-    wet_air(T_drybulb; kw...)
+    wet_air_properties(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2)
+    wet_air_properties(T_drybulb; kw...)
 
 Calculates several properties of humid air as output variables below. The program
 is based on equations from List, R. J. 1971. Smithsonian Meteorological Tables. Smithsonian
-Institution Press. Washington, DC. wet_air must be used in conjunction with function vapor_pressure.
+Institution Press. Washington, DC. wet_air_properties must be used in conjunction with function vapor_pressure.
 
 Input variables are shown below. The user must supply known values for T_drybulb and P (P at one standard
 atmosphere is 101 325 pascals). Values for the remaining variables are determined by whether the user has
@@ -87,7 +87,7 @@ If T_dew is known then set T_wetublb = 0 and rh = 0.
 # - `rh`: Relative humidity (%)
 
 """
-@inline function wet_air(T_drybulb; 
+@inline function wet_air_properties(T_drybulb; 
     T_wetbulb=nothing, 
     T_dew=nothing, 
     rh=nothing, 
@@ -97,9 +97,9 @@ If T_dew is known then set T_wetublb = 0 and rh = 0.
     fN2=0.79,
     vapor_pressure_equation=GoffGratch(),
 )
-    return wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2; vapor_pressure_equation)
+    return wet_air_properties(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2; vapor_pressure_equation)
 end
-@inline function wet_air(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2; vapor_pressure_equation)
+@inline function wet_air_properties(T_drybulb, T_wetbulb, rh, T_dew, P_atmos, fO2, fCO2, fN2; vapor_pressure_equation)
     c_p_H2O_vap = 1864.40u"J/K/kg"
     c_p_dry_air = 1004.84u"J/K/kg" # should be 1006?
     f_w = 1.0053 # (-) correction factor for the departure of the mixture of air and water vapour from ideal gas laws
@@ -144,50 +144,78 @@ end
 end
 
 """
-    dry_air(T_drybulb; kw...)
-    dry_air(T_drybulb, P_atmos, elevation, fO2, fCO2, fN2)
+    dry_air_properties(T_drybulb; kw...)
+    dry_air_properties(T_drybulb, P_atmos, elevation, fO2, fCO2, fN2)
 
 """
-@inline dry_air(T_drybulb; P_atmos=nothing, elevation=0m, fO2=0.2095, fCO2=0.0004, fN2=0.79) = 
-    dry_air(T_drybulb, P_atmos, elevation, fO2, fCO2, fN2)
-@inline function dry_air(T_drybulb, P_atmos, elevation, fO2, fCO2, fN2)
-    σ = uconvert(u"W/m^2/K^4", Unitful.σ) # Stefan-Boltzmann constant, W/m^2/K^4, extract σ when calling Unitful when units issue is fixed in Unitful
+@inline dry_air_properties(T_drybulb; P_atmos=nothing, elevation=0m, fO2=0.2095, fCO2=0.0004, fN2=0.79) = 
+    dry_air_properties(T_drybulb, P_atmos, elevation, fO2, fCO2, fN2)
+@inline function dry_air_properties(T_drybulb, P_atmos, elevation, fO2, fCO2, fN2)
     M_a = ((fO2*molO₂ + fCO2*molCO₂ + fN2*molN₂) |> u"kg") / 1u"mol" # molar mass of air
     if isnothing(P_atmos)
-        P_atmos = get_pressure(elevation)#P_std * ((1 - (0.0065 * elevation / 288m))^(1 / 0.190284))
+        P_atmos = atmospheric_pressure(elevation)
     end
-    ρ_air = (M_a / Unitful.R) * P_atmos / (T_drybulb)
-    ρ_air = uconvert(u"kg/m^3",ρ_air) # simplify units
-    vis_not = 1.8325e-5u"kg/m/s"
-    T_not = 296.16u"K"
-    c = 120u"K"
-    μ = (vis_not * (T_not + c) / (T_drybulb + c)) * (T_drybulb / T_not)^1.5 # kg / m.s
-    ν = μ / ρ_air # m2 / s or J.s/kg
-    dif_vpr = 2.26e-5u"m^2/s" * ((T_drybulb / 273.15u"K")^1.81) * (1.e5u"Pa" / P_atmos) # m2 / s
-    k_fluid = (0.02425 + (7.038e-5 * (ustrip(T_drybulb) - 273.15)))u"W/m/K"
-    L_v = (2.5012e6 - 2.3787e3 * (ustrip(T_drybulb) - 273.15))u"J/kg"
+    ρ_air = (M_a / R) * P_atmos / (T_drybulb) # density of air
+    ρ_air = uconvert(u"kg/m^3", ρ_air) # simplify units
+    μ_0 = 1.8325e-5u"kg/m/s" # reference dynamic viscosity
+    T_0 = 296.16u"K" # reference temperature
+    C = 120u"K" # Sutherland's constant
+    μ = (μ_0 * (T_0 + C) / (T_drybulb + C)) * (T_drybulb / T_0)^1.5 # dynamic viscosity, kg / m.s
+    ν = μ / ρ_air # kinematic viscosity m2 / s or J.s/kg
+    D_0 = 2.26e-5u"m^2/s" # reference molecular diffusivity of water vapour at 273.15 K
+    D_w = D_0 * ((T_drybulb / 273.15u"K")^1.81) * (1.e5u"Pa" / P_atmos) # vapour diffusivity m2 / s
+    k_air = (0.02425 + (7.038e-5 * (ustrip(T_drybulb) - 273.15)))u"W/m/K" # thermal conductivity of air
+    β = 1 / T_drybulb # thermal expansion coefficient
+    Grashof_group = g_n * β / (ν^2) # multipy by ΔT L^3 to get Grashof number, 1 / m3.K
+    blackbody_emission = σ * ((T_drybulb)^4) # W/m2
+    λ_max = 2.897e-3u"K*m" / (T_drybulb) # wavelength of maximum emission, m
 
-    tcoeff = 1 / T_drybulb
-    ggroup = 0.0980616u"m/s^2" * tcoeff / (ν^2) # 1 / m3.K
-    bbemit = σ * ((T_drybulb)^4) # W/m2
-    emtmax = 2.897e-3u"K*m" / (T_drybulb) # m
-
-    return (; P_atmos, ρ_air, μ, ν, dif_vpr, k_fluid, L_v, tcoeff, ggroup, bbemit, emtmax)
+    return (; P_atmos, ρ_air, μ, ν, D_w, k_air, Grashof_group, blackbody_emission, λ_max)
 end
 
-function get_λ_evap(T)
+function enthalpy_of_vaporisation(T::Quantity)
     # These regressions don't respect units, so we strip them
-    Tw = ustrip(u"°C", T)
+    # convert any temperature (K or °C) to Celsius
+    Tw = ustrip(u"°C", uconvert(u"°C", T))
     if Tw > 0
-        return (2500.8 - 2.36 * Tw + 0.0016 * Tw^2 - 0.00006 * Tw^3) * u"kJ/kg"
+        return u"J/kg"((2500.8 - 2.36 * Tw + 0.0016 * Tw^2 - 0.00006 * Tw^3) * u"kJ/kg")
     else
-        return (834.1 - 0.29 * Tw - 0.004 * Tw^2) * u"kJ/kg"
+        return u"J/kg"((834.1 - 0.29 * Tw - 0.004 * Tw^2) * u"kJ/kg")
     end
 end
 
-function waterprop(T::Quantity)
+"""
+    water_properties(T::Quantity)
+
+Compute phyiscal properties of liquid water at a given temperature `T`.
+
+# Description
+These properties are based on regressions obtained using Grapher from Golden Software 
+on data from:
+
+> Ede, "An Introduction of Heat Transfer Principles and Calculations," Pergamon Press, 1967, p. 262.  
+> (Regression performed by W. Porter, 14 July 1988)
+
+The regressions are valid for temperatures up to 60°C. Temperatures above 60°C are clamped to 60°C.
+
+# Inputs
+- `T::Quantity`: Temperature of water. Can be specified with units (e.g., `u"°C"`). Internally converted to °C.
+
+# Returns
+A named tuple with the following fields (all returned as Unitful quantities):
+
+- `c_p_H2O` : Specific heat capacity of water, J/(kg·K)
+- `ρ_H2O`   : Density of water, kg/m^3
+- `k_H2O`   : Thermal conductivity of water, W/(m·K)
+- `μ_H2O`   : Dynamic viscosity of water, kg/(m·s)
+
+# Notes
+- Input temperatures are converted to °C and then units stripped before calculation.
+- Density is clamped at 60°C to avoid extrapolation beyond the regression range.
+"""
+function water_properties(T::Quantity)
     # These regressions don't respect units, so we strip them
-    T = ustrip(u"°C", T) # Ensure temperature is in °C
+    T = ustrip(u"°C", uconvert(u"°C", T)) # Ensure temperature is in °C
 
     # Specific heat capacity (J/kg·K)
     c_p = (4220.02 - 4.5531 * T + 0.182958 * T^2 - 0.00310614 * T^3 + 1.89399e-5 * T^4) * u"J/kg/K"
@@ -198,7 +226,8 @@ function waterprop(T::Quantity)
     elseif T <= 60
         (1017.0 - 0.6 * T) * u"kg/m^3"
     else
-        (1017.0 - 0.6 * 60.0) * u"kg/m^3" # Clamp to 60°C
+        T = 60.0
+        (1017.0 - 0.6 * T) * u"kg/m^3" # Clamp to 60°C
     end
 
     # Thermal conductivity (W/m·K)
