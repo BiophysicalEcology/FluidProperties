@@ -1,36 +1,36 @@
-abstract type VaporPressureEquation end
+abstract type VapourPressureEquation end
 
 """
-    Tetens <: VaporPressureEquation
+    Tetens <: VapourPressureEquation
 
-Tetens equations for [`vapor_pressure`](@ref).
+Tetens equations for [`vapour_pressure`](@ref).
 
 Low accuracy but very fast, with only a single `exp` call.
 """
-struct Teten <: VaporPressureEquation end
+struct Teten <: VapourPressureEquation end
 
-function vapor_pressure(::Teten, T)
+function vapour_pressure(::Teten, T)
     Tc = ustrip(u"°C", T)
-    P_triple = 6.1071    # hPa, vapor pressure at triple point
+    P_triple = 6.1071    # hPa, vapour pressure at triple point
     return P_triple * exp((17.269 * Tc) / (237.3 + Tc)) * 100u"Pa"
 end
 
 """
-    GoffGratch <: VaporPressureEquation
+    GoffGratch <: VapourPressureEquation
 
-Widely used Goff-Gratch equations for [`vapor_pressure`](@ref).
+Widely used Goff-Gratch equations for [`vapour_pressure`](@ref).
 """
-struct GoffGratch <: VaporPressureEquation end
+struct GoffGratch <: VapourPressureEquation end
 
-function vapor_pressure(::GoffGratch, T)
+function vapour_pressure(::GoffGratch, T)
     Tc = ustrip(u"°C", T)
     T = ustrip(u"K", T) + 0.01 # triple point of water is 273.16
 
     # Physical reference points
     T_triple = 273.16    # K, triple point of water
     T_boiling = 373.16   # K, normal boiling point of water
-    P_triple = 6.1071    # hPa, vapor pressure at triple point
-    P_boiling = 1013.246 # hPa, vapor pressure at boiling point
+    P_triple = 6.1071    # hPa, vapour pressure at triple point
+    P_boiling = 1013.246 # hPa, vapour pressure at boiling point
 
     if T < T_triple
         # --- Goff–Gratch saturation over ice ---
@@ -53,15 +53,15 @@ function vapor_pressure(::GoffGratch, T)
 end
 
 """
-    Huang <: VaporPressureEquation
+    Huang <: VapourPressureEquation
 
-Huang (2018) equations for [`vapor_pressure`](@ref).
+Huang (2018) equations for [`vapour_pressure`](@ref).
 
 High accuracy from -100 to 100 °C and reasonable performance.
 """
-struct Huang <: VaporPressureEquation end
+struct Huang <: VapourPressureEquation end
 
-function vapor_pressure(::Huang, Tk)
+function vapour_pressure(::Huang, Tk)
     t = ustrip(u"°C", Tk)
     if t > 0.0
         # Huang (2018), water over liquid surface
@@ -73,16 +73,14 @@ function vapor_pressure(::Huang, Tk)
 end
 
 """
-    vapor_pressure(T)
-    vapor_pressure(formulation, T)
+    vapour_pressure(T)
+    vapour_pressure(formulation, T)
 
-Calculates saturation vapor pressure (Pa) for a given air temperature.
+Calculates saturation vapour pressure (Pa) for a given air temperature.
 
 # Arguments
 - `T`: air temperature in K.
 
 The `GoffGratch` formulation is used by default.
 """
-vapor_pressure(Tk) = vapor_pressure(GoffGratch(), Tk)
-
-@deprecate vapour_pressure vapor_pressure
+vapour_pressure(Tk) = vapour_pressure(GoffGratch(), Tk)
