@@ -173,16 +173,38 @@ end
     return (; P_atmos, ρ_air, μ, ν, D_w, k_air, Grashof_group, blackbody_emission, λ_max)
 end
 
+"""
+    enthalpy_of_vaporisation(T::Quantity)
+"""
 function enthalpy_of_vaporisation(T::Quantity)
     # These regressions don't respect units, so we strip them
     # convert any temperature (K or °C) to Celsius
-    Tw = ustrip(u"°C", uconvert(u"°C", T))
-    if Tw > 0
-        return u"J/kg"((2500.8 - 2.36 * Tw + 0.0016 * Tw^2 - 0.00006 * Tw^3) * u"kJ/kg")
+    T = ustrip(u"°C", uconvert(u"°C", T))
+    if T > 0
+        return u"J/kg"((2500.8 - 2.36 * T + 0.0016 * T^2 - 0.00006 * T^3) * u"kJ/kg")
     else
-        return u"J/kg"((834.1 - 0.29 * Tw - 0.004 * Tw^2) * u"kJ/kg")
+        return u"J/kg"((834.1 - 0.29 * T - 0.004 * T^2) * u"kJ/kg")
     end
 end
+
+
+"""
+    molar_enthalpy_of_vaporisation(T::Quantity)
+
+From Campbell et al 1994 p. 309
+
+References
+- Campbell, G. S., Jungbauer, J. D. Jr., Bidlake, W. R., & Hungerford, R. D. (1994). 
+  Predicting the effect of temperature on soil thermal conductivity. 
+  Soil Science, 158(5), 307–313.
+"""
+function molar_enthalpy_of_vaporisation(T::Quantity)
+    # This regressions doesn't respect units, so we strip them
+    # convert any temperature (K or °C) to Celsius
+    T = ustrip(u"°C", uconvert(u"°C", T))
+    return (45114.0 - 48.0 * T) * u"J/mol"
+end
+
 
 """
     water_properties(T::Quantity)
