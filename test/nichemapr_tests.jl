@@ -50,14 +50,14 @@ blackbody_emission = getindex.(dry_air_out, 8)
 λ_max             = getindex.(dry_air_out, 9)
 
 @testset "R DRYAIR comparisons" begin
-    @test all(isapprox.(ρ_air, denair_dry; rtol=1e-2))
-    @test all(isapprox.(μ, visdyn; rtol=1e-7))
-    @test all(isapprox.(ν, viskin; rtol=1e-2))
-    @test all(isapprox.(D_w, difvpr; rtol=1e-5))
-    @test all(isapprox.(k_air, thcond; rtol=1e-7))
-    @test all(isapprox.(Grashof_group, ggroup; rtol=1e-2))
+    @test all(isapprox.(ρ_air, denair_dry; rtol=1e-9))
+    @test all(isapprox.(μ, visdyn; rtol=1e-9))
+    @test all(isapprox.(ν, viskin; rtol=1e-9))
+    @test all(isapprox.(D_w, difvpr; rtol=1e-9))
+    @test all(isapprox.(k_air, thcond; rtol=1e-9))
+    @test all(isapprox.(Grashof_group, ggroup; rtol=1e-9))
     @test all(isapprox.(blackbody_emission, bbemit; rtol=1e-5))
-    @test all(isapprox.(λ_max, emtmax; rtol=1e-7))
+    @test all(isapprox.(λ_max, emtmax; rtol=1e-9))
 end 
 
 wet_air_out = wet_air_properties.(u"K".(T_airs), P_atmos = P_atmos[1], rh = pars.rh)
@@ -73,14 +73,14 @@ c_p       = getindex.(wet_air_out, 7)
 rh        = getindex.(wet_air_out, 9)
 
 @testset "R WETAIR comparisons" begin
-    @test all(isapprox.(P_vap, e; rtol=1e-7))
-    @test all(isapprox.(P_vap_sat, esat; rtol=1e-7))
-    @test all(isapprox.(ρ_vap, vd; rtol=1e-4))
-    @test all(isapprox.(r_w, rw; rtol=1e-2))
-    @test all(isapprox.(T_vinc, tvinc; rtol=1e-2))
-    @test all(isapprox.(ρ_air_wet, denair_wet; rtol=1e-2))
-    @test all(isapprox.(c_p, c_p_NMR; rtol=1e-3))
-    @test all(isapprox.(ψ, wtrpot; rtol=1e-7))
+    @test all(isapprox.(P_vap, e; rtol=1e-9))
+    @test all(isapprox.(P_vap_sat, esat; rtol=1e-9))
+    @test all(isapprox.(ρ_vap, vd; rtol=1e-9))
+    @test all(isapprox.(r_w, rw; rtol=1e-9))
+    @test all(isapprox.(T_vinc, tvinc; rtol=1e-9))
+    @test all(isapprox.(ρ_air_wet, denair_wet; rtol=1e-9))
+    @test all(isapprox.(c_p, c_p_NMR; rtol=1e-9))
+    @test all(isapprox.(ψ, wtrpot; rtol=1e-9))
 end 
 
 water_properties_out = water_properties.(u"K".(T_airs))
@@ -92,8 +92,8 @@ k_H2O             = getindex.(water_properties_out, 3)
 μ_H2O             = getindex.(water_properties_out, 4)
 
 @testset "R WATERPROP comparisons" begin
-    @test all(isapprox.(c_p_H2O, CP_water; rtol=1e-7))
-    @test all(isapprox.(ρ_H2O, DENSTY_water; rtol=1e-7))
-    @test all(isapprox.(k_H2O, THCOND_water; rtol=1e-7))
-    @test all(isapprox.(μ_H2O, VISDYN_water; rtol=1e-7))
+    @test all(isapprox.(c_p_H2O, CP_water; rtol=1e-9))
+    @test all(isapprox.(ρ_H2O, DENSTY_water; rtol=1e-9))
+    @test all(isapprox.(k_H2O, THCOND_water; rtol=1e-9))
+    @test all(isapprox.(μ_H2O, VISDYN_water; rtol=1e-9))
 end 
