@@ -202,7 +202,7 @@ function molar_enthalpy_of_vaporisation(T::Quantity)
     # This regressions doesn't respect units, so we strip them
     # convert any temperature (K or °C) to Celsius
     T = ustrip(u"°C", uconvert(u"°C", T))
-    return (45114.0 - 48.0 * T) * u"J/mol"
+    return (45144.0 - 48.0 * T) * u"J/mol"
 end
 
 
